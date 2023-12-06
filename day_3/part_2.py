@@ -52,7 +52,7 @@ def construct_numbers_pos(id_line, line) -> [Number]:
     return [Number(id_line, int(match.group()), match.start(), match.end() - 1) for match in matches]
 
 def construct_symbols_pos(id_line, input_string) -> [Symbol]:
-    matches = re.finditer(r'[^\d.]+', input_string)
+    matches = re.finditer(r'\*', input_string)
     return [Symbol(id_line, match.group(), match.start()) for match in matches]
 
 def is_touch_horizontally(number: Number, symbol_pos: int):
@@ -65,37 +65,44 @@ def is_touch_horizontally(number: Number, symbol_pos: int):
         (number_start_pos <= symbol_pos <= number_end_pos)
     )
 
-def is_part_number(number: Number, symbols: [Symbol]):
-    number_line = number.get_line()
-    for symbol in symbols:
-        symbol_pos = symbol.get_pos()
-        symbol_line = symbol.get_line()
+def compute_gear(symbol: Symbol, numbers: [Number]):
+    touched_numbers = []
+    symbol_line = symbol.get_line()
+    symbol_pos = symbol.get_pos()
+
+    for number in numbers:
+        number_line = number.get_line()
 
         # Check if the number touches the char horizontally
         if number_line == symbol_line and is_touch_horizontally(number, symbol_pos):
-            return True
+            touched_numbers.append(number.get_number())
+            continue
 
         # Check if the number touches the char diagonally
         if (
             (number_line + 1 == symbol_line or number_line - 1 == symbol_line) and
             (is_touch_horizontally(number, symbol_pos))
         ):
-            return True
+            touched_numbers.append(number.get_number())
+            continue
+
+    if len(touched_numbers) == 2:
+        return touched_numbers[0] * touched_numbers[1]        
     
-    return False
-    
-# get symbols of current line as well as prev and next line
-def get_symbols_for_line(id_line: int, all_symbols: dict):
-    symbols_for_line = []
+    return 0
+
+
+def get_numbers_for_line(id_line: int, all_numbers: dict):
+    numbers_for_line = []
     if id_line > 0:
-        symbols_for_line.extend(all_symbols[id_line - 1])
+        numbers_for_line.extend(all_numbers[id_line - 1])
 
-    symbols_for_line.extend(all_symbols[id_line])
+    numbers_for_line.extend(all_numbers[id_line])
 
-    if id_line + 1 <= len(all_symbols.keys()) - 1:
-        symbols_for_line.extend(all_symbols[id_line + 1])
+    if id_line + 1 <= len(all_numbers.keys()) - 1:
+        numbers_for_line.extend(all_numbers[id_line + 1])
     
-    return symbols_for_line
+    return numbers_for_line
 
 def process_file(file_path):
     try:
@@ -104,21 +111,19 @@ def process_file(file_path):
             file_lines = file.read().split('\n')
 
         sum = 0
-        all_numbers = []
-        all_symbols = {} # symbols per line
+        all_numbers = {} # numbers per line
+        all_symbols = [] # symbols per line
 
         for idx, line in enumerate(file_lines):
-            # possible to improve by not storing empty arr
-            all_numbers.extend(construct_numbers_pos(idx, line))
-            all_symbols[idx] = construct_symbols_pos(idx, line)
+            all_numbers[idx] = construct_numbers_pos(idx, line)
+            all_symbols.extend(construct_symbols_pos(idx, line))
 
-        for number in all_numbers:
-            symbols_for_line = get_symbols_for_line(number.get_line(), all_symbols)
-            if is_part_number(number, symbols_for_line):
-                sum += number.get_number()
+        for symbol in all_symbols:
+            numbers_for_line = get_numbers_for_line(symbol.get_line(), all_numbers)
+            sum += compute_gear(symbol, numbers_for_line)
 
         print(sum)
-    
+
     except FileNotFoundError:
         print(f"File '{file_path}' not found.")
     except Exception as e:
@@ -127,5 +132,5 @@ def process_file(file_path):
 process_file("example.txt")
 process_file("input.txt")
 
-# example = 4361
-# good answer is: 536576
+# example = 467835
+# good answer is: 75741499
